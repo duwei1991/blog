@@ -6,8 +6,8 @@ Ext.application({
     }
 });
 var server={
-	url:'http://192.168.0.106:8888/dinner',//
-	//url:'http://115.28.147.188:8086/dinner',//internet
+	//url:'http://192.168.0.106:8888/dinner',//
+	url:'http://115.28.147.188:8086/dinner',//internet
 	getAllOrder:function(){return server.url+"/test/getAllReserv.json";},
 	getOrderUpdate:function(id){return server.url+"/test/updateReservState.json?reserv_id="+id},
 	getAllCount:function(){return server.url+"/test/getAllCount.json"}
