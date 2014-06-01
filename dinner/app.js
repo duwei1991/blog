@@ -5,6 +5,26 @@ Ext.application({
 		initMainView();
     }
 });
+var server={
+	url:'http://192.168.0.106:8888/dinner',//
+	//url:'http://115.28.147.188:8086/dinner',//internet
+	getAllOrder:function(){return server.url+"/test/getAllReserv.json";},
+	getOrderUpdate:function(id){return server.url+"/test/updateReservState.json?reserv_id="+id},
+	getAllCount:function(){return server.url+"/test/getAllCount.json"}
+}
+
+function jsonpCall(callUrl,callback){
+	Ext.data.JsonP.request({
+		url: callUrl,
+		callbackKey: 'callback',
+		success: function(result) {
+			if(result.result=="yes"){
+				callback(result);
+			}
+			
+		}
+	});
+}
 
 function initTablePanel(){
 	
@@ -62,10 +82,41 @@ function initTablePanel(){
 }
 
 function initMainView(){
+	console.log(server.getAllOrder());
+	Ext.define('Order', {
+		extend: 'Ext.data.Model',
+		config: {
+			fields: ['reserv_id', 'cust_name', 'cust_tel', 'create_time'],
+			proxy: {
+				type: 'jsonp',
+				url : server.getAllOrder(),
+				reader: {
+					type: 'json',
+					root: 'result'
+				}
+			}
+		}
+	});
+
+	// Uses the User Model's Proxy
+	var orderStore=Ext.create('Ext.data.Store', {
+		model: 'Order',
+		listeners:{
+			load:function(store,records,suc){
+				console.log('loaded records');
+				var a = records.length;//Math.ceil(Math.random()*100);
+				Ext.getCmp('badge0').tab.setBadgeText(a);
+			}
+		}
+	});
+	orderStore.load(function(records, operation, success) {
+		
+	}, this);
 	
 	var orderList = Ext.create('Ext.List', {
-		height: 1000,
-		store: {
+		id:'orderList',
+		flex:1,
+		/*store: {
 			fields: ['name','mobile','tableno','comments'],
 			data: [
 				{name: '张三',mobile:'13752990111',tableno:'2',comments:'无'},
@@ -73,14 +124,18 @@ function initMainView(){
 				{name: '王五',mobile:'13752990311',tableno:'3',comments:'无'},
 				{name: '疙瘩',mobile:'13752994111',tableno:'5',comments:'无'}
 			]
-		},
+		},*/
+		store:orderStore,
 		ui:'round',
-		itemTpl: '{name} 预定 {tableno} 号餐桌，联系电话：{mobile} ，(备注{comments}) ' ,
+		itemTpl: '{cust_name} 预定 {cust_tel} 号餐桌，创建时间 {create_time}' ,
 		onItemDisclosure:function(record,btn,index){
-			Ext.Msg.confirm('预约完成','确定客户'+record.get("name")+'已经到达，移出该预约？',
+			Ext.Msg.confirm('预约完成','确定客户'+record.get("cust_name")+'已经到达，移出该预约？',
 				function(btn){
 					if(btn=="yes"){
-					orderList.removeAt(0);
+						jsonpCall(server.getOrderUpdate(record.get("reserv_id")),function(){
+							orderList.getStore().removeAt(index);
+							Ext.getCmp('badge0').tab.setBadgeText(orderList.getStore().getCount());
+						});
 					}
 				}				
 			,this);
@@ -94,7 +149,7 @@ function initMainView(){
 	
 
 	var mainPanel = Ext.create('Ext.TabPanel', {
-		activeItem:1,
+		activeItem:0,
 		fullscreen: true,
 		tabBarPosition: 'bottom',
 		defaults: {
@@ -104,8 +159,8 @@ function initMainView(){
 
 		items: [
 			{
-				id:'badge0',title: '预约',badgeText:3,	
-				iconCls: 'user',
+				id:'badge0',title: '预约',
+				iconCls: 'user',layout:'hbox',
 				items:[orderList,{docked: 'top', xtype: 'titlebar',title:'预约列表'}]
 			},
 			{
@@ -137,8 +192,18 @@ function initMainView(){
 	});
 	Ext.onReady(function(){
 		function loop(){
-			var a = Math.ceil(Math.random()*100);
-			Ext.getCmp('badge0').tab.setBadgeText(a);
+			jsonpCall(server.getAllCount()+"?storeId=2",function(reply){
+				
+				if(reply.result=="yes"){
+					var count=reply.data.orderCount;
+					
+					if(count!=Ext.getCmp('orderList').getStore().getCount()){
+						Ext.getCmp('badge1').tab.setBadgeText(count);
+						Ext.getCmp('orderList').getStore().load();						
+					}					
+				}				
+			});
+			
 		}
 		var loopTime=2000;
 		window.setInterval(loop,loopTime);
